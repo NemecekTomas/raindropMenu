@@ -47,6 +47,12 @@ async function fetchAllRaindrops(colId, count) {
 async function doSync() {
     const destId = document.querySelector('input[name="dest"]:checked').value; // "1" or "2"
 
+    // Guard: bookmarks permission must be active (requires extension reload after manifest change)
+    if (!chrome.bookmarks) {
+        setStatus('error', 'Missing bookmarks permission — please reload the extension in chrome://extensions/');
+        return;
+    }
+
     setSyncing(true);
 
     try {
@@ -120,8 +126,9 @@ async function doSync() {
         );
 
     } catch (e) {
-        setStatus('error', 'Sync failed — check your connection and token.');
-        console.error(e);
+        console.error('Raindrop sync error:', e);
+        const msg = e?.message || String(e);
+        setStatus('error', `Sync failed: ${msg}`);
     } finally {
         setSyncing(false);
     }
