@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Raindrop Menu – Sync Report</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #202124;
+            min-height: 100vh;
+        }
+
+        /* ── Top bar ── */
+        .topbar {
+            background: #fff;
+            border-bottom: 1px solid #e8eaed;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .topbar-icon {
+            width: 36px;
+            height: 36px;
+            background: #e8f0fe;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .topbar h1 { font-size: 16px; font-weight: 600; color: #202124; }
+        .topbar p  { font-size: 12px; color: #80868b; margin-top: 1px; }
+
+        /* ── Container ── */
+        .container {
+            max-width: 800px;
+            margin: 32px auto;
+            padding: 0 24px;
+        }
+
+        /* ── Summary cards ── */
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e8eaed;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #202124;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #80868b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .stat-card.error   .stat-value { color: #c5221f; }
+        .stat-card.success .stat-value { color: #1e8e3e; }
+        .stat-card.warning .stat-value { color: #e37400; }
+
+        /* ── Table card ── */
+        .table-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e8eaed;
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f1f3f4;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .table-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #202124;
+        }
+
+        .table-header span {
+            font-size: 12px;
+            color: #80868b;
+        }
+
+        /* Filter tabs */
+        .filter-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 12px 20px;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .filter-tab {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            color: #5f6368;
+            background: transparent;
+            transition: all 0.15s;
+        }
+
+        .filter-tab:hover { background: #f1f3f4; }
+        .filter-tab.active {
+            background: #e8f0fe;
+            color: #1a73e8;
+            border-color: #c5d9f8;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            padding: 10px 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #80868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: left;
+            background: #fafafa;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        thead th.num { text-align: right; width: 90px; }
+
+        tbody tr { border-bottom: 1px solid #f8f9fa; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #fafafa; }
+
+        tbody td {
+            padding: 9px 20px;
+            font-size: 13px;
+            color: #3c4043;
+            vertical-align: middle;
+        }
+
+        tbody td.num {
+            text-align: right;
+            color: #80868b;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .col-name {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            max-width: 360px;
+        }
+
+        .col-name span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .col-name svg { flex-shrink: 0; color: #1a73e8; }
+
+        /* Status badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge.ok      { background: #e6f4ea; color: #1e8e3e; }
+        .badge.warn    { background: #fef3cd; color: #856404; }
+        .badge.err     { background: #fce8e6; color: #c5221f; }
+        .badge.empty   { background: #f1f3f4; color: #80868b; }
+
+        .badge svg { width: 11px; height: 11px; }
+
+        /* No data */
+        .no-data {
+            padding: 40px;
+            text-align: center;
+            color: #80868b;
+            font-size: 13px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            font-size: 11px;
+            color: #bdc1c6;
+            padding: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="topbar-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#1a73e8">
+                <path d="M12 2C6.5 8 4 12 4 15.5a8 8 0 0 0 16 0C20 12 17.5 8 12 2z"/>
+            </svg>
+        </div>
+        <div>
+            <h1>Raindrop Menu – Sync Report</h1>
+            <p id="sync-time">Loading…</p>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- Summary row -->
+        <div class="summary">
+            <div class="stat-card" id="card-cols">
+                <div class="stat-value" id="val-cols">—</div>
+                <div class="stat-label">Collections</div>
+            </div>
+            <div class="stat-card" id="card-books">
+                <div class="stat-value" id="val-books">—</div>
+                <div class="stat-label">Bookmarks synced</div>
+            </div>
+            <div class="stat-card" id="card-errors">
+                <div class="stat-value" id="val-errors">—</div>
+                <div class="stat-label">Errors</div>
+            </div>
+        </div>
+
+        <!-- Detail table -->
+        <div class="table-card">
+            <div class="table-header">
+                <h2>Collections</h2>
+                <span id="filter-label"></span>
+            </div>
+
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all">All</button>
+                <button class="filter-tab" data-filter="ok">OK</button>
+                <button class="filter-tab" data-filter="warn">Mismatch</button>
+                <button class="filter-tab" data-filter="err">Errors</button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Collection</th>
+                        <th class="num">Expected</th>
+                        <th class="num">Synced</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body"></tbody>
+            </table>
+
+            <div id="no-data" class="no-data hidden">No sync data yet. Run a sync first.</div>
+        </div>
+
+    </div>
+
+    <div class="footer">Raindrop Menu</div>
+
+    <script src="results.js"></script>
+</body>
+</html>
