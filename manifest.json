@@ -3,7 +3,7 @@
     "name": "Raindrop Menu",
     "version": "1.0",
     "description": "Browse your Raindrop.io collections as a classic bookmark menu",
-    "permissions": ["storage", "tabs"],
+    "permissions": ["storage", "tabs", "bookmarks"],
     "host_permissions": [
         "https://api.raindrop.io/*"
     ],

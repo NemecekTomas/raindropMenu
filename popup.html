@@ -8,14 +8,14 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            width: 360px;
+            width: 300px;
             background: #ffffff;
             color: #202124;
         }
 
         .hidden { display: none !important; }
 
-        /* ── Setup view ───────────────────────────────────────────────── */
+        /* ── Header ───────────────────────────────────────────────────── */
 
         .header {
             padding: 28px 20px 20px;
@@ -47,25 +47,40 @@
             margin-top: 3px;
         }
 
+        /* ── Content area ─────────────────────────────────────────────── */
+
         .content {
             padding: 16px 20px 20px;
         }
+
+        /* ── Info / status card ───────────────────────────────────────── */
 
         .info-card {
             background: #f8f9fa;
             border-radius: 8px;
             padding: 12px 14px;
-            margin-bottom: 14px;
+            margin-bottom: 16px;
             display: flex;
             align-items: flex-start;
             gap: 10px;
+            transition: background 0.2s;
         }
 
-        .info-icon { flex-shrink: 0; width: 18px; height: 18px; color: #80868b; margin-top: 1px; }
+        .info-card.success { background: #e6f4ea; }
+        .info-card.error   { background: #fce8e6; }
+
+        .info-icon { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; }
         .info-icon svg { width: 18px; height: 18px; }
+        .info-icon.blue  svg { color: #80868b; }
+        .info-icon.green svg { color: #1e8e3e; }
+        .info-icon.red   svg { color: #c5221f; }
 
         .info-text { font-size: 12px; color: #5f6368; line-height: 1.5; }
         .info-text strong { color: #202124; font-weight: 600; }
+        .info-card.success .info-text { color: #137333; }
+        .info-card.error   .info-text { color: #c5221f; }
+
+        /* ── Links ────────────────────────────────────────────────────── */
 
         .help-link {
             display: block;
@@ -75,6 +90,8 @@
             margin-bottom: 12px;
         }
         .help-link:hover { text-decoration: underline; }
+
+        /* ── Token input ──────────────────────────────────────────────── */
 
         .token-input {
             width: 100%;
@@ -91,6 +108,8 @@
         }
         .token-input:focus { border-color: #1a73e8; }
         .token-input::placeholder { letter-spacing: 0; font-family: inherit; color: #9aa0a6; }
+
+        /* ── Buttons ──────────────────────────────────────────────────── */
 
         .primary-btn {
             width: 100%;
@@ -114,6 +133,22 @@
         .primary-btn:disabled { opacity: 0.6; cursor: default; }
         .primary-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 
+        .danger-btn {
+            width: 100%;
+            padding: 9px 16px;
+            background: #fce8e6;
+            color: #c5221f;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.15s;
+        }
+        .danger-btn:hover { background: #f5c6c4; }
+
+        /* ── Error msg (setup) ────────────────────────────────────────── */
+
         .error-msg {
             margin-top: 10px;
             padding: 9px 12px;
@@ -122,6 +157,8 @@
             font-size: 12px;
             color: #c5221f;
         }
+
+        /* ── Footer ───────────────────────────────────────────────────── */
 
         .footer {
             padding: 10px 20px 14px;
@@ -140,145 +177,13 @@
         }
         .privacy-note svg { width: 12px; height: 12px; flex-shrink: 0; }
 
-        /* ── Main view ────────────────────────────────────────────────── */
-
-        .top-bar {
-            height: 44px;
-            padding: 0 14px;
-            display: flex;
-            align-items: center;
-            border-bottom: 1px solid #f1f3f4;
-        }
-
-        .top-bar-brand {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #202124;
-            flex: 1;
-        }
-
-        #tree-container {
-            max-height: 436px;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        /* Scrollbar styling */
-        #tree-container::-webkit-scrollbar { width: 6px; }
-        #tree-container::-webkit-scrollbar-track { background: transparent; }
-        #tree-container::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 3px; }
-        #tree-container::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }
-
-        .loading-state {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 32px 20px;
-            font-size: 13px;
-            color: #80868b;
-        }
-
-        #tree-error {
-            padding: 20px;
-            font-size: 12px;
-            color: #c5221f;
-            background: #fce8e6;
-            margin: 8px;
-            border-radius: 8px;
-        }
-
-        .empty-state {
-            padding: 32px 20px;
-            text-align: center;
-            font-size: 13px;
-            color: #80868b;
-        }
-
-        /* ── Tree rows ────────────────────────────────────────────────── */
-
-        .tree-row {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            height: 32px;
-            padding-right: 10px;
-            cursor: pointer;
-            user-select: none;
-            transition: background 0.1s;
-            white-space: nowrap;
-        }
-        .tree-row:hover { background: #f8f9fa; }
-        .tree-row:active { background: #f1f3f4; }
-
-        .tree-chevron {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
-            flex-shrink: 0;
-            color: #9aa0a6;
-            transition: transform 0.18s ease;
-        }
-        .tree-chevron.open { transform: rotate(180deg); }
-        .tree-chevron svg { display: block; }
-
-        .tree-icon {
-            display: flex;
-            align-items: center;
-            flex-shrink: 0;
-        }
-
-        .folder-icon { color: #1a73e8; }
-        .link-icon { color: #9aa0a6; }
-
-        .tree-label {
-            flex: 1;
-            font-size: 13px;
-            color: #202124;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .raindrop-row .tree-label { color: #3c4043; }
-
-        .tree-count {
-            font-size: 11px;
-            color: #9aa0a6;
-            background: #f1f3f4;
-            padding: 1px 6px;
-            border-radius: 10px;
-            flex-shrink: 0;
-        }
-
-        .tree-more {
-            height: 28px;
-            display: flex;
-            align-items: center;
-            font-size: 11px;
-            color: #9aa0a6;
-            padding-right: 10px;
-            cursor: default;
-        }
-
-        .tree-spinner { display: flex; align-items: center; }
-
-        /* Spin animation */
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .spin { animation: spin 0.8s linear infinite; transform-origin: center; }
-
-        /* ── Settings accordion (same pattern as tabSorter) ───────────── */
+        /* ── Settings accordion ───────────────────────────────────────── */
 
         .settings-toggle {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 14px;
+            padding: 10px 20px;
             border-top: 1px solid #f1f3f4;
             cursor: pointer;
             user-select: none;
@@ -310,32 +215,58 @@
             overflow: hidden;
             transition: max-height 0.25s ease;
         }
-        .settings-panel.open { max-height: 200px; }
+        .settings-panel.open { max-height: 300px; }
 
         .settings-inner {
-            padding: 14px 16px 16px;
+            padding: 14px 20px 16px;
             border-top: 1px solid #f1f3f4;
         }
 
-        .setting-label {
+        .setting-group { margin-bottom: 14px; }
+
+        .setting-group-label {
             font-size: 11px;
             font-weight: 600;
             color: #80868b;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
-        #token-display {
-            font-size: 12px;
-            color: #5f6368;
-            font-family: monospace;
-            background: #f8f9fa;
-            padding: 6px 10px;
-            border-radius: 6px;
-            margin-bottom: 12px;
-            letter-spacing: 1px;
+        /* Segment control */
+        .segment-group {
+            display: flex;
+            background: #f1f3f4;
+            border-radius: 7px;
+            padding: 2px;
+            gap: 2px;
+        }
+
+        .segment { flex: 1; cursor: pointer; }
+
+        .segment input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .segment span {
             display: block;
+            text-align: center;
+            padding: 5px 4px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #80868b;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .segment input:checked + span {
+            background: #ffffff;
+            color: #1a73e8;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.12);
         }
 
         .settings-divider {
@@ -344,19 +275,23 @@
             margin: 12px 0;
         }
 
-        .danger-btn {
-            width: 100%;
-            padding: 9px 16px;
-            background: #fce8e6;
-            color: #c5221f;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            transition: background 0.15s;
+        .setting-label { font-size: 13px; font-weight: 500; color: #202124; }
+
+        #token-display {
+            display: block;
+            font-size: 12px;
+            color: #5f6368;
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin: 4px 0 0;
+            letter-spacing: 1px;
         }
-        .danger-btn:hover { background: #f5c6c4; }
+
+        /* Spin animation */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 0.9s linear infinite; transform-origin: center; }
     </style>
 </head>
 <body>
@@ -368,29 +303,27 @@
 
         <div class="header">
             <div class="header-icon">
-                <!-- Raindrop / water-drop icon -->
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="#1a73e8" xmlns="http://www.w3.org/2000/svg">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="#1a73e8">
                     <path d="M12 2C6.5 8 4 12 4 15.5a8 8 0 0 0 16 0C20 12 17.5 8 12 2z"/>
                 </svg>
             </div>
             <h1>Raindrop Menu</h1>
-            <p>Your bookmarks as a classic menu</p>
+            <p>Sync collections to your bookmarks bar</p>
         </div>
 
         <div class="content">
             <div class="info-card">
-                <div class="info-icon">
+                <div class="info-icon blue">
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
                     </svg>
                 </div>
                 <div class="info-text">
-                    Paste your <strong>Personal Access Token</strong> from Raindrop.io.
-                    The token is only stored locally in your browser.
+                    Enter your <strong>Personal Access Token</strong> from Raindrop.io to get started.
                 </div>
             </div>
 
-            <a id="get-token-link" href="#" class="help-link">Get your token at app.raindrop.io/settings/integrations →</a>
+            <a id="get-token-link" href="#" class="help-link">Get your token at app.raindrop.io →</a>
 
             <input id="token-input" type="password" class="token-input" placeholder="Paste your token here…">
 
@@ -422,28 +355,39 @@
     <!-- ══════════════════════════════════════════════════════════════════ -->
     <div id="main-view" class="hidden">
 
-        <div class="top-bar">
-            <div class="top-bar-brand">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+        <div class="header">
+            <div class="header-icon">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="#1a73e8">
                     <path d="M12 2C6.5 8 4 12 4 15.5a8 8 0 0 0 16 0C20 12 17.5 8 12 2z"/>
                 </svg>
-                Raindrop Menu
             </div>
+            <h1>Raindrop Menu</h1>
+            <p>Sync collections to your bookmarks bar</p>
         </div>
 
-        <div id="tree-container">
-            <!-- Loading state -->
-            <div id="tree-loading" class="loading-state">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5" width="18" height="18" class="spin">
-                    <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
-                    <path d="M12 2a10 10 0 0 1 10 10"/>
-                </svg>
-                Loading collections…
+        <div class="content">
+
+            <!-- Status card -->
+            <div class="info-card" id="status-card">
+                <div class="info-icon blue" id="status-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                    </svg>
+                </div>
+                <div class="info-text" id="status-text">Not synced yet.</div>
             </div>
-            <!-- Tree root -->
-            <div id="tree-root" class="hidden"></div>
-            <!-- Error state -->
-            <div id="tree-error" class="hidden"></div>
+
+            <!-- Sync button -->
+            <button id="sync-btn" class="primary-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <polyline points="23 20 23 14 17 14"/>
+                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                </svg>
+                Sync to Bookmarks Bar
+            </button>
+
         </div>
 
         <!-- Settings accordion -->
@@ -462,10 +406,30 @@
 
         <div id="settings-panel" class="settings-panel">
             <div class="settings-inner">
-                <div class="setting-label">Access Token</div>
-                <span id="token-display">••••••••</span>
+
+                <div class="setting-group">
+                    <div class="setting-group-label">Sync destination</div>
+                    <div class="segment-group">
+                        <label class="segment">
+                            <input type="radio" name="dest" value="1" checked>
+                            <span>Bookmarks bar</span>
+                        </label>
+                        <label class="segment">
+                            <input type="radio" name="dest" value="2">
+                            <span>Other bookmarks</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-label">Access Token</div>
+                    <span id="token-display">••••••••</span>
+                </div>
+
                 <div class="settings-divider"></div>
+
                 <button id="disconnect-btn" class="danger-btn">Disconnect account</button>
+
             </div>
         </div>
 

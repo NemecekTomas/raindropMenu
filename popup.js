@@ -1,40 +1,20 @@
 'use strict';
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let token        = null;
-let allCols      = [];        // all collection objects
-let colMap       = {};        // id → collection
-let expanded     = new Set(); // expanded collection ids
-let dropsCache   = {};        // collectionId → items[]
-let totalsCache  = {};        // collectionId → total count from API
-let dropsLoading = new Set(); // currently fetching
+let token = null;
 
-// ── Shortcuts ─────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 const $    = id => document.getElementById(id);
 const show = el => el.classList.remove('hidden');
 const hide = el => el.classList.add('hidden');
 
-// ── SVG snippets ──────────────────────────────────────────────────────────────
-const SVG_FOLDER = `<svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
-  <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-</svg>`;
-
-const SVG_LINK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
-  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-</svg>`;
-
-const SVG_CHEVRON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-     stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
-  <polyline points="6 9 12 15 18 9"/>
-</svg>`;
-
-const SVG_SPIN = `<svg viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"
-     width="13" height="13" class="spin">
-  <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
-  <path d="M12 2a10 10 0 0 1 10 10"/>
-</svg>`;
+function timeAgo(ts) {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60)   return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+    return new Date(ts).toLocaleDateString();
+}
 
 // ── API ───────────────────────────────────────────────────────────────────────
 async function apiGet(path) {
@@ -53,154 +33,146 @@ async function fetchAllCollections() {
     return [...(rootRes.items || []), ...(childRes.items || [])];
 }
 
-async function fetchRaindrops(colId) {
-    const data = await apiGet(`/raindrops/${colId}?perpage=50&page=0`);
-    return data;
+// Fetches all pages for a collection in parallel
+async function fetchAllRaindrops(colId, count) {
+    const pages = Math.ceil(count / 50);
+    const reqs  = Array.from({ length: pages }, (_, p) =>
+        apiGet(`/raindrops/${colId}?perpage=50&page=${p}`)
+    );
+    const results = await Promise.all(reqs);
+    return results.flatMap(r => r.items || []);
 }
 
-// ── Tree helpers ──────────────────────────────────────────────────────────────
-function getChildren(parentId) {
-    return allCols.filter(c => c.parent && c.parent.$id === parentId);
-}
+// ── Sync: Raindrop → Chrome Bookmarks ────────────────────────────────────────
+async function doSync() {
+    const destId = document.querySelector('input[name="dest"]:checked').value; // "1" or "2"
 
-function getRoots() {
-    // Root collections have no parent or parent.$id is falsy / 0
-    return allCols.filter(c => !c.parent || !c.parent.$id);
-}
+    setSyncing(true);
 
-// ── Render ────────────────────────────────────────────────────────────────────
-function renderTree() {
-    const root = $('tree-root');
-    root.innerHTML = '';
-    const roots = getRoots();
-    if (roots.length === 0) {
-        root.innerHTML = '<div class="empty-state">No collections found.</div>';
-        return;
-    }
-    roots.forEach(col => appendCollectionRow(col, 0, root));
-}
+    try {
+        // ── Phase 1: fetch all collections ──
+        setStatus('neutral', 'Fetching collections…');
+        const allCols = await fetchAllCollections();
 
-function appendCollectionRow(col, depth, container) {
-    const children   = getChildren(col._id);
-    const isExpanded = expanded.has(col._id);
-    const isLoading  = dropsLoading.has(col._id);
-    const drops      = dropsCache[col._id];
+        // Skip trash
+        const cols = allCols.filter(c => c._id !== -99);
 
-    // ── Row ──
-    const row = document.createElement('div');
-    row.className = 'tree-row';
-    row.dataset.id = col._id;
-    row.style.paddingLeft = (10 + depth * 16) + 'px';
+        // ── Phase 2: find/create root "Raindrop" folder ──
+        const rootFolder = await getOrCreateRootFolder(destId);
 
-    // Chevron toggle
-    const chev = document.createElement('span');
-    chev.className = 'tree-chevron' + (isExpanded ? ' open' : '');
-    chev.innerHTML = SVG_CHEVRON;
+        // Clear existing contents (fresh sync)
+        const existing = await chrome.bookmarks.getChildren(rootFolder.id);
+        await Promise.all(existing.map(b => chrome.bookmarks.removeTree(b.id)));
 
-    // Folder icon (tinted with collection colour if set)
-    const icon = document.createElement('span');
-    icon.className = 'tree-icon folder-icon';
-    if (col.color) icon.style.color = col.color;
-    icon.innerHTML = SVG_FOLDER;
+        // ── Phase 3: build folder tree (BFS, level by level) ──
+        setStatus('neutral', 'Building folder structure…');
 
-    // Label
-    const label = document.createElement('span');
-    label.className = 'tree-label';
-    label.textContent = col.title;
+        const folderMap = {}; // raindropColId → chromeBookmarkId
 
-    row.append(chev, icon, label);
+        let queue = cols
+            .filter(c => !c.parent || !c.parent.$id)
+            .map(c => ({ col: c, parentId: rootFolder.id }));
 
-    if (isLoading) {
-        const spinner = document.createElement('span');
-        spinner.className = 'tree-spinner';
-        spinner.innerHTML = SVG_SPIN;
-        row.appendChild(spinner);
-    } else if (col.count > 0 || children.length > 0) {
-        const badge = document.createElement('span');
-        badge.className = 'tree-count';
-        badge.textContent = col.count;
-        row.appendChild(badge);
-    }
-
-    row.addEventListener('click', () => toggleCollection(col._id));
-    container.appendChild(row);
-
-    // ── Children (when expanded) ──
-    if (!isExpanded) return;
-
-    // Sub-collections first
-    children.forEach(child => appendCollectionRow(child, depth + 1, container));
-
-    // Then direct raindrops
-    if (drops) {
-        drops.forEach(drop => appendRaindropRow(drop, depth + 1, container));
-
-        const total = totalsCache[col._id] || 0;
-        if (total > drops.length) {
-            const more = document.createElement('div');
-            more.className = 'tree-more';
-            more.style.paddingLeft = (10 + (depth + 1) * 16) + 'px';
-            more.textContent = `+${total - drops.length} more — open in Raindrop.io`;
-            container.appendChild(more);
+        while (queue.length > 0) {
+            const nextQueue = [];
+            await Promise.all(queue.map(async ({ col, parentId }) => {
+                const folder = await chrome.bookmarks.create({ parentId, title: col.title });
+                folderMap[col._id] = folder.id;
+                const children = cols.filter(c => c.parent && c.parent.$id === col._id);
+                children.forEach(child => nextQueue.push({ col: child, parentId: folder.id }));
+            }));
+            queue = nextQueue;
         }
-    } else if (col.count > 0 && !isLoading) {
-        // drops not loaded yet but loading hasn't started — edge case guard
+
+        // ── Phase 4: fetch raindrops and populate folders ──
+        const colsWithDrops = cols.filter(c => c.count > 0 && folderMap[c._id]);
+        let done = 0;
+
+        await Promise.all(colsWithDrops.map(async col => {
+            try {
+                const drops = await fetchAllRaindrops(col._id, col.count);
+                const parentId = folderMap[col._id];
+                for (const drop of drops) {
+                    if (drop.link) {
+                        await chrome.bookmarks.create({
+                            parentId,
+                            title: drop.title || drop.domain || drop.link,
+                            url: drop.link
+                        });
+                    }
+                }
+            } finally {
+                done++;
+                setStatus('neutral', `Syncing bookmarks… (${done} / ${colsWithDrops.length})`);
+            }
+        }));
+
+        // ── Done ──
+        const totalBookmarks = colsWithDrops.reduce((n, c) => n + c.count, 0);
+        await chrome.storage.local.set({
+            lastSyncTime:  Date.now(),
+            lastSyncCols:  cols.length,
+            lastSyncBooks: totalBookmarks
+        });
+
+        setStatus('success',
+            `Synced ${cols.length} collections · ${totalBookmarks} bookmarks`
+        );
+
+    } catch (e) {
+        setStatus('error', 'Sync failed — check your connection and token.');
+        console.error(e);
+    } finally {
+        setSyncing(false);
     }
 }
 
-function appendRaindropRow(drop, depth, container) {
-    const row = document.createElement('div');
-    row.className = 'tree-row raindrop-row';
-    row.style.paddingLeft = (10 + depth * 16) + 'px';
-    row.title = drop.link;
-
-    const icon = document.createElement('span');
-    icon.className = 'tree-icon link-icon';
-    icon.innerHTML = SVG_LINK;
-
-    const label = document.createElement('span');
-    label.className = 'tree-label';
-    label.textContent = drop.title || drop.link;
-
-    row.append(icon, label);
-
-    row.addEventListener('click', () => {
-        chrome.tabs.create({ url: drop.link });
-        window.close();
-    });
-
-    container.appendChild(row);
+async function getOrCreateRootFolder(parentId) {
+    const children = await chrome.bookmarks.getChildren(parentId);
+    const found = children.find(b => !b.url && b.title === 'Raindrop');
+    if (found) return found;
+    return chrome.bookmarks.create({ parentId, title: 'Raindrop' });
 }
 
-// ── Toggle ────────────────────────────────────────────────────────────────────
-async function toggleCollection(id) {
-    if (expanded.has(id)) {
-        expanded.delete(id);
-        renderTree();
-        return;
+// ── Status helpers ────────────────────────────────────────────────────────────
+const ICON_INFO = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" style="color:#80868b">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+</svg>`;
+
+const ICON_OK = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" style="color:#1e8e3e">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+</svg>`;
+
+const ICON_ERR = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" style="color:#c5221f">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+</svg>`;
+
+const ICON_SPIN = `<svg viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"
+     width="18" height="18" class="spin">
+    <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
+    <path d="M12 2a10 10 0 0 1 10 10"/>
+</svg>`;
+
+function setStatus(type, text) {
+    const card = $('status-card');
+    const icon = $('status-icon');
+    const txt  = $('status-text');
+
+    card.classList.remove('success', 'error');
+    if (type === 'success') { card.classList.add('success'); icon.innerHTML = ICON_OK; }
+    else if (type === 'error')   { card.classList.add('error');   icon.innerHTML = ICON_ERR; }
+    else if (type === 'syncing') { icon.innerHTML = ICON_SPIN; }
+    else                         { icon.innerHTML = ICON_INFO; }
+
+    txt.textContent = text;
+}
+
+function setSyncing(active) {
+    const btn = $('sync-btn');
+    btn.disabled = active;
+    if (active) {
+        setStatus('syncing', 'Starting sync…');
     }
-
-    expanded.add(id);
-
-    // Fetch drops if needed
-    const col = colMap[id];
-    if (col && col.count > 0 && !dropsCache[id] && !dropsLoading.has(id)) {
-        dropsLoading.add(id);
-        renderTree(); // show spinner
-        try {
-            const data = await fetchRaindrops(id);
-            dropsCache[id]  = data.items || [];
-            totalsCache[id] = data.count || 0;
-        } catch (e) {
-            dropsCache[id]  = [];
-            totalsCache[id] = 0;
-            console.error('Failed to load raindrops for', id, e);
-        } finally {
-            dropsLoading.delete(id);
-        }
-    }
-
-    renderTree();
 }
 
 // ── Views ─────────────────────────────────────────────────────────────────────
@@ -214,7 +186,7 @@ function showMainView() {
     show($('main-view'));
 }
 
-// ── Setup view logic ──────────────────────────────────────────────────────────
+// ── Setup view ────────────────────────────────────────────────────────────────
 function initSetupView() {
     $('get-token-link').addEventListener('click', e => {
         e.preventDefault();
@@ -222,7 +194,6 @@ function initSetupView() {
     });
 
     $('connect-btn').addEventListener('click', connectToken);
-
     $('token-input').addEventListener('keydown', e => {
         if (e.key === 'Enter') connectToken();
     });
@@ -238,7 +209,6 @@ async function connectToken() {
     hide($('setup-error'));
 
     try {
-        // Verify token by fetching user info
         const res = await fetch('https://api.raindrop.io/rest/v1/user', {
             headers: { Authorization: `Bearer ${input}` }
         });
@@ -247,15 +217,13 @@ async function connectToken() {
         await chrome.storage.local.set({ rdToken: input });
         token = input;
         showMainView();
-        await loadAndRender();
         initMainView();
+        restoreLastSyncStatus();
     } catch {
         const errEl = $('setup-error');
         errEl.textContent = 'Could not connect. Check your token and try again.';
         show(errEl);
         btn.disabled = false;
-        btn.textContent = 'Connect to Raindrop.io';
-        // Restore SVG in button
         btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
              stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
@@ -264,53 +232,54 @@ async function connectToken() {
     }
 }
 
-// ── Main view logic ───────────────────────────────────────────────────────────
-async function loadAndRender() {
-    show($('tree-loading'));
-    hide($('tree-root'));
-    hide($('tree-error'));
+// ── Main view ─────────────────────────────────────────────────────────────────
+async function restoreLastSyncStatus() {
+    const s = await chrome.storage.local.get(['lastSyncTime', 'lastSyncCols', 'lastSyncBooks', 'rdDest']);
 
-    try {
-        allCols = await fetchAllCollections();
-        // Hide trash collection
-        allCols = allCols.filter(c => c._id !== -99);
-        colMap  = Object.fromEntries(allCols.map(c => [c._id, c]));
+    // Restore destination setting
+    if (s.rdDest) {
+        const radio = document.querySelector(`input[name="dest"][value="${s.rdDest}"]`);
+        if (radio) radio.checked = true;
+    }
 
-        hide($('tree-loading'));
-        show($('tree-root'));
-        renderTree();
-    } catch (e) {
-        hide($('tree-loading'));
-        const errEl = $('tree-error');
-        errEl.textContent = 'Failed to load collections. Check your connection and token.';
-        show(errEl);
+    if (s.lastSyncTime) {
+        setStatus('success',
+            `Last synced ${timeAgo(s.lastSyncTime)} · ${s.lastSyncCols} collections · ${s.lastSyncBooks} bookmarks`
+        );
+    } else {
+        setStatus('neutral', 'Not synced yet. Click below to sync your Raindrop collections.');
     }
 }
 
 function initMainView() {
+    // Sync button
+    $('sync-btn').addEventListener('click', doSync);
+
+    // Save destination on change
+    document.querySelectorAll('input[name="dest"]').forEach(r => {
+        r.addEventListener('change', () => {
+            chrome.storage.local.set({ rdDest: r.value });
+        });
+    });
+
+    // Settings accordion
     const toggle  = $('settings-toggle');
     const panel   = $('settings-panel');
     const chevron = $('settings-chevron');
 
     toggle.addEventListener('click', () => {
-        const opening = !panel.classList.contains('open');
         panel.classList.toggle('open');
         chevron.classList.toggle('open');
-        if (opening) {
-            // Show masked token
-            $('token-display').textContent =
-                token.slice(0, 6) + '••••••••' + token.slice(-4);
+        // Show masked token when opening
+        if (panel.classList.contains('open')) {
+            $('token-display').textContent = token.slice(0, 6) + '••••••••' + token.slice(-4);
         }
     });
 
+    // Disconnect
     $('disconnect-btn').addEventListener('click', async () => {
-        await chrome.storage.local.remove('rdToken');
-        token     = null;
-        allCols   = [];
-        colMap    = {};
-        dropsCache   = {};
-        totalsCache  = {};
-        expanded.clear();
+        await chrome.storage.local.remove(['rdToken', 'lastSyncTime', 'lastSyncCols', 'lastSyncBooks', 'rdDest']);
+        token = null;
         showSetupView();
         initSetupView();
     });
@@ -328,6 +297,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     showMainView();
-    await loadAndRender();
     initMainView();
+    restoreLastSyncStatus();
 });
