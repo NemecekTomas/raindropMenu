@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Raindrop Menu</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            width: 360px;
+            background: #ffffff;
+            color: #202124;
+        }
+
+        .hidden { display: none !important; }
+
+        /* ── Setup view ───────────────────────────────────────────────── */
+
+        .header {
+            padding: 28px 20px 20px;
+            text-align: center;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            background: #e8f0fe;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 14px;
+        }
+
+        .header h1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #202124;
+            letter-spacing: -0.2px;
+        }
+
+        .header p {
+            font-size: 12px;
+            color: #80868b;
+            margin-top: 3px;
+        }
+
+        .content {
+            padding: 16px 20px 20px;
+        }
+
+        .info-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .info-icon { flex-shrink: 0; width: 18px; height: 18px; color: #80868b; margin-top: 1px; }
+        .info-icon svg { width: 18px; height: 18px; }
+
+        .info-text { font-size: 12px; color: #5f6368; line-height: 1.5; }
+        .info-text strong { color: #202124; font-weight: 600; }
+
+        .help-link {
+            display: block;
+            font-size: 12px;
+            color: #1a73e8;
+            text-decoration: none;
+            margin-bottom: 12px;
+        }
+        .help-link:hover { text-decoration: underline; }
+
+        .token-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1.5px solid #dadce0;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #202124;
+            outline: none;
+            margin-bottom: 12px;
+            font-family: monospace;
+            letter-spacing: 1px;
+            transition: border-color 0.15s;
+        }
+        .token-input:focus { border-color: #1a73e8; }
+        .token-input::placeholder { letter-spacing: 0; font-family: inherit; color: #9aa0a6; }
+
+        .primary-btn {
+            width: 100%;
+            padding: 11px 20px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .primary-btn:hover:not(:disabled) { background: #1765cc; }
+        .primary-btn:active:not(:disabled) { background: #1558b0; }
+        .primary-btn:disabled { opacity: 0.6; cursor: default; }
+        .primary-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .error-msg {
+            margin-top: 10px;
+            padding: 9px 12px;
+            background: #fce8e6;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #c5221f;
+        }
+
+        .footer {
+            padding: 10px 20px 14px;
+        }
+
+        .privacy-note {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 7px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #80868b;
+        }
+        .privacy-note svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+        /* ── Main view ────────────────────────────────────────────────── */
+
+        .top-bar {
+            height: 44px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .top-bar-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #202124;
+            flex: 1;
+        }
+
+        #tree-container {
+            max-height: 436px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* Scrollbar styling */
+        #tree-container::-webkit-scrollbar { width: 6px; }
+        #tree-container::-webkit-scrollbar-track { background: transparent; }
+        #tree-container::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 3px; }
+        #tree-container::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }
+
+        .loading-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 32px 20px;
+            font-size: 13px;
+            color: #80868b;
+        }
+
+        #tree-error {
+            padding: 20px;
+            font-size: 12px;
+            color: #c5221f;
+            background: #fce8e6;
+            margin: 8px;
+            border-radius: 8px;
+        }
+
+        .empty-state {
+            padding: 32px 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #80868b;
+        }
+
+        /* ── Tree rows ────────────────────────────────────────────────── */
+
+        .tree-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            height: 32px;
+            padding-right: 10px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.1s;
+            white-space: nowrap;
+        }
+        .tree-row:hover { background: #f8f9fa; }
+        .tree-row:active { background: #f1f3f4; }
+
+        .tree-chevron {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            color: #9aa0a6;
+            transition: transform 0.18s ease;
+        }
+        .tree-chevron.open { transform: rotate(180deg); }
+        .tree-chevron svg { display: block; }
+
+        .tree-icon {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .folder-icon { color: #1a73e8; }
+        .link-icon { color: #9aa0a6; }
+
+        .tree-label {
+            flex: 1;
+            font-size: 13px;
+            color: #202124;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .raindrop-row .tree-label { color: #3c4043; }
+
+        .tree-count {
+            font-size: 11px;
+            color: #9aa0a6;
+            background: #f1f3f4;
+            padding: 1px 6px;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        .tree-more {
+            height: 28px;
+            display: flex;
+            align-items: center;
+            font-size: 11px;
+            color: #9aa0a6;
+            padding-right: 10px;
+            cursor: default;
+        }
+
+        .tree-spinner { display: flex; align-items: center; }
+
+        /* Spin animation */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 0.8s linear infinite; transform-origin: center; }
+
+        /* ── Settings accordion (same pattern as tabSorter) ───────────── */
+
+        .settings-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-top: 1px solid #f1f3f4;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.1s;
+        }
+        .settings-toggle:hover { background: #f8f9fa; }
+
+        .settings-toggle-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #3c4043;
+        }
+        .settings-toggle-left svg { width: 15px; height: 15px; color: #80868b; }
+
+        .chevron {
+            width: 16px;
+            height: 16px;
+            color: #9aa0a6;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .chevron.open { transform: rotate(180deg); }
+
+        .settings-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.25s ease;
+        }
+        .settings-panel.open { max-height: 200px; }
+
+        .settings-inner {
+            padding: 14px 16px 16px;
+            border-top: 1px solid #f1f3f4;
+        }
+
+        .setting-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #80868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        #token-display {
+            font-size: 12px;
+            color: #5f6368;
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            display: block;
+        }
+
+        .settings-divider {
+            height: 1px;
+            background: #f1f3f4;
+            margin: 12px 0;
+        }
+
+        .danger-btn {
+            width: 100%;
+            padding: 9px 16px;
+            background: #fce8e6;
+            color: #c5221f;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.15s;
+        }
+        .danger-btn:hover { background: #f5c6c4; }
+    </style>
+</head>
+<body>
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- SETUP VIEW                                                        -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <div id="setup-view">
+
+        <div class="header">
+            <div class="header-icon">
+                <!-- Raindrop / water-drop icon -->
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="#1a73e8" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.5 8 4 12 4 15.5a8 8 0 0 0 16 0C20 12 17.5 8 12 2z"/>
+                </svg>
+            </div>
+            <h1>Raindrop Menu</h1>
+            <p>Your bookmarks as a classic menu</p>
+        </div>
+
+        <div class="content">
+            <div class="info-card">
+                <div class="info-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                    </svg>
+                </div>
+                <div class="info-text">
+                    Paste your <strong>Personal Access Token</strong> from Raindrop.io.
+                    The token is only stored locally in your browser.
+                </div>
+            </div>
+
+            <a id="get-token-link" href="#" class="help-link">Get your token at app.raindrop.io/settings/integrations →</a>
+
+            <input id="token-input" type="password" class="token-input" placeholder="Paste your token here…">
+
+            <button id="connect-btn" class="primary-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                Connect to Raindrop.io
+            </button>
+
+            <div id="setup-error" class="error-msg hidden"></div>
+        </div>
+
+        <div class="footer">
+            <div class="privacy-note">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                </svg>
+                Your token is stored locally in your browser
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- MAIN VIEW                                                         -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <div id="main-view" class="hidden">
+
+        <div class="top-bar">
+            <div class="top-bar-brand">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                    <path d="M12 2C6.5 8 4 12 4 15.5a8 8 0 0 0 16 0C20 12 17.5 8 12 2z"/>
+                </svg>
+                Raindrop Menu
+            </div>
+        </div>
+
+        <div id="tree-container">
+            <!-- Loading state -->
+            <div id="tree-loading" class="loading-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5" width="18" height="18" class="spin">
+                    <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
+                    <path d="M12 2a10 10 0 0 1 10 10"/>
+                </svg>
+                Loading collections…
+            </div>
+            <!-- Tree root -->
+            <div id="tree-root" class="hidden"></div>
+            <!-- Error state -->
+            <div id="tree-error" class="hidden"></div>
+        </div>
+
+        <!-- Settings accordion -->
+        <div id="settings-toggle" class="settings-toggle">
+            <div class="settings-toggle-left">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                </svg>
+                Settings
+            </div>
+            <svg id="settings-chevron" class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+        </div>
+
+        <div id="settings-panel" class="settings-panel">
+            <div class="settings-inner">
+                <div class="setting-label">Access Token</div>
+                <span id="token-display">••••••••</span>
+                <div class="settings-divider"></div>
+                <button id="disconnect-btn" class="danger-btn">Disconnect account</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
